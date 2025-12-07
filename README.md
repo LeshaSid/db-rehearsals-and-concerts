@@ -89,6 +89,6 @@
 
 **Запустите Streamlit-приложение:**
 
-    ```bash
+    ```
     uv run streamlit run main.py
     ```
