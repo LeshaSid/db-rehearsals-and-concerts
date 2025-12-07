@@ -5,12 +5,8 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta 
 import time 
 
-# --- КОНСТАНТЫ (Соответствуют ограничениям SQL) ---
+LOCATIONS = ['Большой зал', 'Малый зал', 'Студия А', 'Студия Б']
 
-# Константы для репетиций
-LOCATIONS = ['Большой зал', 'Малый зал', 'Студия А', 'Студия Б'] # <-- ДОБАВЛЕНО
-
-# Константы для музыкантов
 INSTRUMENTS = {
     "Гитара": "guitar", "Бас": "bass", "Барабаны": "drums", "Клавишные": "keyboards",
     "Пианино": "piano", "Вокал": "vocals", "Скрипка": "violin", "Виолончель": "cello",
@@ -20,7 +16,6 @@ INSTRUMENTS = {
 INSTRUMENTS_REVERSE = {v: k for k, v in INSTRUMENTS.items()}
 INSTRUMENTS_LIST = list(INSTRUMENTS.keys())
 
-# Константы для коллективов
 GENRES = {
     "Рок": "rock", "Поп": "pop", "Джаз": "jazz", "Блюз": "blues", "Классика": "classical",
     "Электроника": "electronic", "Фолк": "folk", "Метал": "metal", "Панк": "punk",
@@ -31,12 +26,8 @@ GENRES = {
 GENRES_REVERSE = {v: k for k, v in GENRES.items()}
 GENRES_LIST = list(GENRES.keys())
 
-# --- ФУНКЦИИ ДЛЯ РАБОТЫ С БАЗОЙ ДАННЫХ (PostgreSQL) ---
-
-# Создаем соединение без кэширования, так как Streamlit сам управляет кэшем
 def init_connection():
     try:
-        # Убедитесь, что здесь указаны ваши корректные данные для подключения
         conn = psycopg2.connect(
             host="localhost", 
             database="concerts and rehearsals", 
@@ -50,8 +41,7 @@ def init_connection():
         st.info("Проверьте, запущен ли PostgreSQL, и обновите учетные данные.")
         return None
 
-# Функция для выполнения запроса SELECT и возврата данных
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=1)
 def run_query(query, params=None):
     conn = init_connection()
     if conn is None:
@@ -60,7 +50,7 @@ def run_query(query, params=None):
     cursor = conn.cursor()
     try:
         cursor.execute(query, params or ())
-        if cursor.description:  # Проверяем, есть ли результат
+        if cursor.description:
             column_names = [desc[0] for desc in cursor.description]
             results = [dict(zip(column_names, row)) for row in cursor.fetchall()]
             return results
@@ -74,7 +64,6 @@ def run_query(query, params=None):
         if conn is not None:
             conn.close()
 
-# Функция для выполнения запросов INSERT, UPDATE, DELETE
 def execute_non_query(query, params=None, fetch_id=False):
     conn = init_connection()
     if conn is None:
@@ -100,9 +89,7 @@ def execute_non_query(query, params=None, fetch_id=False):
         if conn is not None:
             conn.close()
 
-# Универсальная функция удаления
 def delete_record(table, id_column, record_id):
-    """Универсальное удаление записи."""
     try:
         sql = f"DELETE FROM {table} WHERE {id_column} = %s"
         return execute_non_query(sql, (record_id,))
@@ -110,7 +97,6 @@ def delete_record(table, id_column, record_id):
         st.error(f"Ошибка удаления: {e}")
         return False
 
-# --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
 def sidebar_pg():
     with st.sidebar:
         st.header("🎵 Меню")
@@ -126,6 +112,3 @@ def sidebar_pg():
         
         for page_path, icon_label in pages.items():
             st.page_link(page_path, label=icon_label)
-        
-        st.divider()
-        st.markdown(f"Version 0.1.0 (Streamlit {st.__version__})")

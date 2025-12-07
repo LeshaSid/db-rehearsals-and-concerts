@@ -8,7 +8,7 @@ st.set_page_config(page_title="Коллективы", page_icon="🎸", layout="
 rl.sidebar_pg()
 st.title("🎸 Музыкальные коллективы")
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=1)
 def load_bands():
     query = """
         SELECT b.*, 
@@ -25,7 +25,7 @@ def load_bands():
         b['genre_display'] = rl.GENRES_REVERSE.get(b['genre'], b['genre'])
     return data
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=1)
 def load_band_members(band_id):
     query = """
         SELECT m.first_name, m.last_name, m.instrument, bm.musician_id 
@@ -37,7 +37,7 @@ def load_band_members(band_id):
         m['instrument_display'] = rl.INSTRUMENTS_REVERSE.get(m['instrument'], m['instrument'])
     return members
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=1)
 def load_available_musicians(band_id):
     query = """
         SELECT musician_id, first_name, last_name, instrument FROM musicians 
@@ -110,12 +110,10 @@ with tab2:
 
         if is_edit and delete_button:
             band_id = target_band['band_id']
-            # Удаляем зависимости явно, так как универсальная функция не обрабатывает CASCADE
             rl.execute_non_query("DELETE FROM performances WHERE band_id=%s", (band_id,))
             rl.execute_non_query("DELETE FROM rehearsals WHERE band_id=%s", (band_id,))
             rl.execute_non_query("DELETE FROM band_membership WHERE band_id=%s", (band_id,))
             
-            # Удаляем коллектив, используя универсальную функцию
             if rl.delete_record('bands', 'band_id', band_id):
                 st.toast(f"✅ Коллектив {target_band['band_name']} удален!", icon="🗑️")
                 load_bands.clear()
@@ -136,7 +134,6 @@ with tab3:
                 col1.write(f"👤 **{m['last_name']} {m['first_name']}** ({m['instrument_display']})")
                 
                 if col2.button("❌", key=f"del_{m['musician_id']}"):
-                    # Удаляем членство
                     if rl.execute_non_query("DELETE FROM band_membership WHERE band_id=%s AND musician_id=%s", (bid, m['musician_id'])):
                         st.toast(f"Участник {m['last_name']} удален.", icon="👋")
                         load_band_members.clear()

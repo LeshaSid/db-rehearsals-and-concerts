@@ -2,18 +2,16 @@ import streamlit as st
 import rac_lib as rl
 import pandas as pd
 import re
-import time # Для задержки при toast
+import time
 
 st.set_page_config(page_title="Музыканты", page_icon="🎵", layout="wide")
 rl.sidebar_pg()
 st.title("🎵 Музыканты")
 
-# --- Логика ---
 def validate_phone(phone):
-    # Формат: +375XXXXXXXXX
     return bool(re.match(r'^\+375[0-9]{9}$', phone))
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=1)
 def load_musicians():
     query = """
         SELECT musician_id, first_name, last_name, instrument, phone, telegram
@@ -83,7 +81,6 @@ with tab3:
         
         c1, c2 = st.columns(2)
         
-        # --- БЛОК РЕДАКТИРОВАНИЯ ---
         with c1.form("edit_form"):
             st.caption("Редактирование данных")
             cur_inst_key = rl.INSTRUMENTS_REVERSE.get(sel_row['instrument'])
@@ -105,7 +102,6 @@ with tab3:
                 else:
                     st.error("Неверный формат телефона")
         
-        # --- БЛОК УДАЛЕНИЯ ---
         with c2.form("delete_form"):
             st.caption("Осторожно, удаление!")
             st.warning("Удаление музыканта автоматически удалит его из всех коллективов.")
@@ -113,10 +109,8 @@ with tab3:
             if st.form_submit_button("Удалить музыканта", type="primary"):
                 musician_id = sel_row['musician_id']
                 
-                # 1. Удаляем зависимости (членство)
                 rl.delete_record("band_membership", "musician_id", musician_id)
                 
-                # 2. Удаляем самого музыканта, используя универсальную функцию
                 if rl.delete_record("musicians", "musician_id", musician_id):
                     st.toast("✅ Музыкант удален!", icon="🗑️"); 
                     load_musicians.clear()

@@ -8,9 +8,8 @@ rl.sidebar_pg()
 
 st.title("🏠 Система управления студией")
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=5)
 def load_metrics():
-    """Загрузка ключевых метрик."""
     metrics_map = {
         "Музыкантов": "SELECT COUNT(*) FROM musicians",
         "Коллективов": "SELECT COUNT(*) FROM bands",
@@ -23,9 +22,8 @@ def load_metrics():
         results[label] = res[0]['count'] if res and res[0].get('count') is not None else 0
     return results
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=5)
 def load_upcoming_events(days=7):
-    """Загрузка ближайших событий."""
     today = datetime.now()
     end_date = today + timedelta(days=days)
 
@@ -40,8 +38,6 @@ def load_upcoming_events(days=7):
     """
     return rl.run_query(events_query, (today, end_date, today, end_date))
 
-
-# --- Метрики ---
 st.subheader("📊 Статистика")
 cols = st.columns(4)
 metrics = load_metrics()
@@ -51,7 +47,6 @@ for col, (label, count) in zip(cols, metrics.items()):
 
 st.divider()
 
-# --- Ближайшие мероприятия ---
 st.subheader("📅 Ближайшие мероприятия")
 days_ahead = st.slider("Показать события на дней вперед", 1, 30, 7)
 

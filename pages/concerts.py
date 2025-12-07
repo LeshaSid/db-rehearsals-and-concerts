@@ -1,20 +1,19 @@
 import streamlit as st
 import rac_lib as rl
 import pandas as pd
-from datetime import date, time, datetime # time здесь - это класс
+from datetime import date, time, datetime
 
 st.set_page_config(page_title="Концерты", page_icon="🎭", layout="wide")
 rl.sidebar_pg()
 
 st.title("🎭 Концерты")
 
-# Загрузка данных
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=1)
 def load_bands():
     data = rl.run_query("SELECT band_id, band_name FROM bands ORDER BY band_name")
     return {b['band_name']: b['band_id'] for b in data}, [b['band_name'] for b in data]
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=1)
 def load_concerts():
     query = """
         SELECT c.*, 
@@ -28,7 +27,7 @@ def load_concerts():
     """
     return rl.run_query(query)
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=1)
 def load_concert_lineup(concert_id):
     query = """
         SELECT b.band_name, p.performance_order
@@ -39,11 +38,9 @@ def load_concert_lineup(concert_id):
     """
     return rl.run_query(query, (concert_id,))
 
-# Инициализация данных
 bands_map, bands_list = load_bands()
 concerts_data = load_concerts()
 
-# Главный вид
 st.subheader("📋 Все концерты")
 
 if concerts_data:
@@ -56,14 +53,12 @@ if concerts_data:
         'band_count': 'Кол-во групп'
     })
     
-    # Поиск
     search = st.text_input("🔍 Поиск по названию или адресу")
     if search:
         mask = df_display['Название'].str.contains(search, case=False) | \
                df_display['Адрес'].str.contains(search, case=False)
         df_display = df_display[mask]
     
-    # Отображение
     st.dataframe(
         df_display[['Название', 'Адрес', 'Дата и время', 'Кол-во групп', 'Коллективы']],
         use_container_width=True,
@@ -76,7 +71,6 @@ st.markdown("---")
 
 tab1, tab2, tab3 = st.tabs(["➕ Создать", "✏️ Редактировать", "🗑️ Удалить"])
 
-# --- Вкладка Создать ---
 with tab1:
     with st.form("create_form", clear_on_submit=True):
         col1, col2 = st.columns(2)
@@ -87,7 +81,6 @@ with tab1:
         
         with col2:
             concert_date = st.date_input("Дата*", value=date.today())
-            # ИСПРАВЛЕНИЕ: Используем класс time напрямую
             concert_time = st.time_input("Время*", value=time(20, 0))
         
         selected_bands = st.multiselect("Коллективы", bands_list)
@@ -102,7 +95,6 @@ with tab1:
             else:
                 full_datetime = datetime.combine(concert_date, concert_time)
                 
-                # Создаем концерт
                 query = """
                     INSERT INTO concerts (concert_title, venue_address, concert_date) 
                     VALUES (%s, %s, %s)
@@ -110,14 +102,12 @@ with tab1:
                 success = rl.execute_non_query(query, (title, address, full_datetime))
                 
                 if success:
-                    # Получаем ID созданного концерта
                     get_id_query = "SELECT concert_id FROM concerts WHERE concert_title = %s AND venue_address = %s AND concert_date = %s ORDER BY concert_id DESC LIMIT 1"
                     concert_id_result = rl.run_query(get_id_query, (title, address, full_datetime))
                     
                     if concert_id_result:
                         concert_id = concert_id_result[0]['concert_id']
                         
-                        # Добавляем коллективы
                         all_success = True
                         for i, band_name in enumerate(selected_bands, 1):
                             band_id = bands_map.get(band_name)
@@ -136,7 +126,6 @@ with tab1:
                 else:
                     st.error("❌ Ошибка при создании концерта")
 
-# --- Вкладка Редактировать ---
 with tab2:
     if not concerts_data:
         st.info("Нет концертов для редактирования")
@@ -166,7 +155,6 @@ with tab2:
                         current_dt = datetime.fromisoformat(current_dt.replace('Z', '+00:00'))
                     
                     new_date = st.date_input("Дата*", value=current_dt.date())
-                    # current_dt.time() - это метод datetime-объекта, тут все правильно
                     new_time = st.time_input("Время*", value=current_dt.time())
                 
                 new_bands = st.multiselect("Коллективы", bands_list, default=current_bands)
@@ -179,7 +167,6 @@ with tab2:
                     else:
                         new_datetime = datetime.combine(new_date, new_time)
                         
-                        # Обновляем концерт
                         update_query = """
                             UPDATE concerts 
                             SET concert_title=%s, venue_address=%s, concert_date=%s 
@@ -191,7 +178,6 @@ with tab2:
                         )
                         
                         if success:
-                            # Обновляем состав
                             rl.execute_non_query("DELETE FROM performances WHERE concert_id = %s", (concert['concert_id'],))
                             
                             for i, band_name in enumerate(new_bands, 1):
@@ -206,7 +192,6 @@ with tab2:
                         else:
                             st.error("❌ Ошибка при обновлении")
 
-# --- Вкладка Удалить ---
 with tab3:
     if not concerts_data:
         st.info("Нет концертов для удаления")
@@ -226,14 +211,11 @@ with tab3:
             if st.button("Удалить", type="primary", disabled=not confirm):
                 ids_to_delete = [concert_options[name] for name in to_delete]
                 
-                # Удаляем зависимости
                 placeholders = ', '.join(['%s'] * len(ids_to_delete))
                 
-                # Сначала удаляем выступления
                 delete_perf = f"DELETE FROM performances WHERE concert_id IN ({placeholders})"
                 rl.execute_non_query(delete_perf, ids_to_delete)
                 
-                # Затем удаляем концерты
                 delete_concerts = f"DELETE FROM concerts WHERE concert_id IN ({placeholders})"
                 success = rl.execute_non_query(delete_concerts, ids_to_delete)
                 
