@@ -8,7 +8,7 @@ rl.sidebar_pg()
 
 st.title("🏠 Система управления студией")
 
-@st.cache_data(ttl=5)
+@st.cache_data(ttl=1)
 def load_metrics():
     metrics_map = {
         "Музыкантов": "SELECT COUNT(*) FROM musicians",
@@ -22,7 +22,7 @@ def load_metrics():
         results[label] = res[0]['count'] if res and res[0].get('count') is not None else 0
     return results
 
-@st.cache_data(ttl=5)
+@st.cache_data(ttl=1)
 def load_upcoming_events(days=7):
     today = datetime.now()
     end_date = today + timedelta(days=days)
